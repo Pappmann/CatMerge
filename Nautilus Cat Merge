@@ -47,11 +47,24 @@ for file in $SORTED_FILES; do
 done
 
 # Starte einen Fortschrittsdialog
-( 
-    ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c copy "$OUTPUT_FILE" 2>&1 | \
-    while read line; do
-        echo "# $line"
-    done
+(
+    case "$EXTENSION" in
+        mp4|mov|mkv)
+            ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c copy "$OUTPUT_FILE"
+            ;;
+        mp3|aac|ogg)
+            ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a copy "$OUTPUT_FILE" || \
+            ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a libmp3lame "$OUTPUT_FILE"
+            ;;
+        wav|flac)
+            ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a copy "$OUTPUT_FILE" || \
+            ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a flac "$OUTPUT_FILE"
+            ;;
+        *)
+            yad --image=dialog-error --text="Nicht unterstütztes Format!" --button=gtk-ok:0 --center
+            exit 1
+            ;;
+    esac
     echo 100
 ) | yad --progress --title="Zusammenfügen läuft" --percentage=0 --auto-close --center
 
