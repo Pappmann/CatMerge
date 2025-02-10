@@ -15,6 +15,19 @@ BASENAME=$(basename "$FIRST_FILE" | sed -E 's/_[0-9]{3}\.[^.]+$//')
 TIMESTAMP=$(stat -c %y "$FIRST_FILE" | cut -d' ' -f1)
 OUTPUT_FILE="${BASENAME}_${TIMESTAMP}.$EXTENSION"
 
+# Sortiere die Dateien nach Namen
+SORTED_FILES=$(echo "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" | sort)
+
+# Zeige eine Dialogbox mit der Liste der Dateien und Abbrechen-Button
+yad --title="Zusammenfügen bestätigen" \
+    --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
+    --list --column="Dateien" $(echo "$SORTED_FILES" | tr '\n' ' ') \
+    --button=gtk-cancel:1 --button=gtk-ok:0
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
 # Überprüfe den verfügbaren Speicherplatz
 REQUIRED_SPACE=$(du -c $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS | tail -n 1 | awk '{print $1}')
 AVAILABLE_SPACE=$(df "$DIRNAME" | tail -n 1 | awk '{print $4}')
@@ -24,16 +37,22 @@ if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
     exit 1
 fi
 
-echo "Zusammenfügen der Dateien..."
-
 # Wechsle in das Verzeichnis, um die Datei dort zu speichern
 cd "$DIRNAME" || exit 1
 
-# Zeige eine Statusmeldung in einem GUI-Fenster
-yad --image=dialog-information --button=gtk-ok:0 --timeout=2 --center &
+# Erstelle eine temporäre Liste der Dateien
+LIST_FILE=$(mktemp)
+for file in $SORTED_FILES; do
+    echo "file '$file'" >> "$LIST_FILE"
+done
 
-# Zusammenfügen der Dateien mit cat
-cat $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS > "$OUTPUT_FILE"
+# Starte einen Fortschrittsdialog
+( 
+    ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c copy "$OUTPUT_FILE" 2>&1 | \
+    while read line; do
+        echo "# $line"
+    done
+    echo 100
+) | yad --progress --title="Zusammenfügen läuft" --percentage=0 --auto-close --center
 
-# Zeige eine Bestätigungsmeldung ohne Interaktion
-yad --image=dialog-ok --button=gtk-ok:0 --timeout=3 --center &
+rm "$LIST_FILE"
