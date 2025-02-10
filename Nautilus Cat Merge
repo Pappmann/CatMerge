@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Falls keine Dateien ausgewählt wurden, beenden
+test -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" && exit 1
+
+# Bestimme das Verzeichnis und die erste Datei
+FIRST_FILE=$(echo "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" | head -n 1)
+DIRNAME=$(dirname "$FIRST_FILE")
+EXTENSION="${FIRST_FILE##*.}"
+
+# Extrahiere den Basisnamen ohne die Zahlenfolge am Ende
+BASENAME=$(basename "$FIRST_FILE" | sed -E 's/_[0-9]{3}\.[^.]+$//')
+
+# Hole den Erstellungszeitpunkt der ersten Datei
+TIMESTAMP=$(stat -c %y "$FIRST_FILE" | cut -d' ' -f1)
+OUTPUT_FILE="${BASENAME}_${TIMESTAMP}.$EXTENSION"
+
+# Überprüfe den verfügbaren Speicherplatz
+REQUIRED_SPACE=$(du -c $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS | tail -n 1 | awk '{print $1}')
+AVAILABLE_SPACE=$(df "$DIRNAME" | tail -n 1 | awk '{print $4}')
+
+if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
+    yad --image=dialog-error --button=gtk-cancel:1 --timeout=3 --center
+    exit 1
+fi
+
+echo "Zusammenfügen der Dateien..."
+
+# Wechsle in das Verzeichnis, um die Datei dort zu speichern
+cd "$DIRNAME" || exit 1
+
+# Zeige eine Statusmeldung in einem GUI-Fenster
+yad --image=dialog-information --button=gtk-ok:0 --timeout=2 --center &
+
+# Zusammenfügen der Dateien mit cat
+cat $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS > "$OUTPUT_FILE"
+
+# Zeige eine Bestätigungsmeldung ohne Interaktion
+yad --image=dialog-ok --button=gtk-ok:0 --timeout=3 --center &
