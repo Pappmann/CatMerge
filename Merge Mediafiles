@@ -1,85 +1,128 @@
 #!/bin/bash
 
-# Falls keine Dateien ausgewählt wurden, beenden
-test -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" && exit 1
+# Strengeres Fehler-Handling
+set -o errexit -o nounset -o pipefail
 
-# Bestimme das Verzeichnis und die erste Datei
-FIRST_FILE=$(echo "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" | head -n 1)
-DIRNAME=$(dirname "$FIRST_FILE")
+# --- Abhängigkeiten prüfen (mit GUI/CLI-Fallback) ---------------------------------------------
+need_cmds=("ffmpeg" "yad" "pv")
+missing=()
+for c in "${need_cmds[@]}"; do
+  if ! command -v "$c" >/dev/null 2>&1; then
+    missing+=("$c")
+  fi
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+  # Fedora-Hinweis für ffmpeg (RPM Fusion)
+  rpmfusion_hint=""
+  if printf '%s\n' "${missing[@]}" | grep -q '^ffmpeg$'; then
+    rpmfusion_hint="\nHinweis: Auf Fedora ist ffmpeg meist in RPM Fusion. Aktivierung z. B.:\n  sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm"
+  fi
+
+  msg="Fehlende Abhängigkeiten: ${missing[*]}\n\nInstalliere auf Fedora z. B.:\n  sudo dnf install -y ${missing[*]}${rpmfusion_hint}"
+
+  if command -v yad >/dev/null 2>&1; then
+    yad --title="Abhängigkeiten fehlen" --text="$msg" --button=gtk-ok:0 --center || true
+  elif command -v zenity >/dev/null 2>&1; then
+    zenity --info --title="Abhängigkeiten fehlen" --text="$msg" || true
+  elif command -v notify-send >/dev/null 2>&1; then
+    notify-send "Abhängigkeiten fehlen" "$msg"
+  else
+    echo "$msg" >&2
+  fi
+  exit 1
+fi
+
+# -----------------------------------------------------------------------------------------------
+# Falls keine Dateien ausgewählt wurden, beenden
+: "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS:-}"
+if [ -z "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}" ]; then
+  if command -v yad >/dev/null 2>&1; then
+    yad --image=dialog-error --text="Keine Dateien ausgewählt." --button=gtk-ok:0 --center || true
+  else
+    echo "Keine Dateien ausgewählt." >&2
+  fi
+  exit 1
+fi
+
+# Bestimme das Verzeichnis und die erste Datei (sicher gegen Leerzeichen)
+FIRST_FILE=$(echo "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}" | head -n 1)
+DIRNAME=$(dirname "${FIRST_FILE}")
 EXTENSION="${FIRST_FILE##*.}"
 
 # Extrahiere den Basisnamen ohne die Zahlenfolge am Ende
-BASENAME=$(basename "$FIRST_FILE" | sed -E 's/_[0-9]{3}\.[^.]+$//')
+BASENAME=$(basename "${FIRST_FILE}" | sed -E 's/_[0-9]{3}\.[^.]+$//')
 
-# Hole den Erstellungszeitpunkt der ersten Datei
-TIMESTAMP=$(stat -c %y "$FIRST_FILE" | cut -d' ' -f1)
-OUTPUT_FILE="${BASENAME}_${TIMESTAMP}.$EXTENSION"
+# Hole den Erstellungszeitpunkt der ersten Datei (YYYY-MM-DD)
+TIMESTAMP=$(stat -c %y "${FIRST_FILE}" | cut -d' ' -f1)
+OUTPUT_FILE="${BASENAME}_${TIMESTAMP}.${EXTENSION}"
 
-# Sortiere die Dateien nach Namen
-SORTED_FILES=$(echo "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" | sort)
+# Sortiere die Dateien nach Namen (Zeilenweise)
+SORTED_FILES=$(echo "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS}" | sort)
 
-# Zeige eine Dialogbox mit der Liste der Dateien und Abbrechen-Button
+# Zeige eine Dialogbox mit der Liste der Dateien und Abbrechen-Button (falls GUI vorhanden)
 yad --title="Zusammenfügen bestätigen" \
     --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
-    --list --column="Dateien" $(echo "$SORTED_FILES" | tr '\n' ' ') \
-    --button=gtk-cancel:1 --button=gtk-ok:0
-
-if [ $? -ne 0 ]; then
-    exit 1
-fi
+    --list --column="Dateien" $(echo "${SORTED_FILES}" | tr '\n' ' ') \
+    --button=gtk-cancel:1 --button=gtk-ok:0 || exit 1
 
 # Überprüfe den verfügbaren Speicherplatz
-REQUIRED_SPACE=$(du -c $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS | tail -n 1 | awk '{print $1}')
-AVAILABLE_SPACE=$(df "$DIRNAME" | tail -n 1 | awk '{print $4}')
+REQUIRED_SPACE=$(du -c ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} | tail -n 1 | awk '{print $1}')
+AVAILABLE_SPACE=$(df "${DIRNAME}" | tail -n 1 | awk '{print $4}')
 
-if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
-    yad --image=dialog-error --button=gtk-cancel:1 --timeout=3 --center
+if [ "${AVAILABLE_SPACE}" -lt "${REQUIRED_SPACE}" ]; then
+    yad --image=dialog-error --button=gtk-ok:0 --center --text="Nicht genügend Speicherplatz verfügbar!" || true
     exit 1
 fi
 
 # Wechsle in das Verzeichnis, um die Datei dort zu speichern
-cd "$DIRNAME" || exit 1
+cd "${DIRNAME}"
 
-# Erstelle eine temporäre Liste der Dateien
+# Erstelle eine temporäre Liste der Dateien (robust gegen Leerzeichen)
 LIST_FILE=$(mktemp)
-for file in $SORTED_FILES; do
-    echo "file '$file'" >> "$LIST_FILE"
-done
+while IFS= read -r file; do
+  echo "file '$file'" >> "${LIST_FILE}"
+done <<< "${SORTED_FILES}"
 
 # Teste, ob die Dateien ohne Neukodierung zusammengefügt werden können
 NEED_REENCODE=0
-if ffmpeg -v error -f concat -safe 0 -i "$LIST_FILE" -c copy -f null - 2>/dev/null; then
-    NEED_REENCODE=0
+if ffmpeg -hide_banner -v error -f concat -safe 0 -i "${LIST_FILE}" -c copy -t 0.1 -f null - </dev/null 2>/dev/null; then
+  NEED_REENCODE=0
 else
-    NEED_REENCODE=1
+  NEED_REENCODE=1
 fi
 
 # Falls Neukodierung erforderlich, frage den Nutzer
-if [ "$NEED_REENCODE" -eq 1 ]; then
-    yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button=gtk-no:1 --button=gtk-yes:0
-    if [ $? -ne 0 ]; then
-        exit 1
-    fi
+if [ "${NEED_REENCODE}" -eq 1 ]; then
+  yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button=gtk-no:1 --button=gtk-yes:0 || { rm -f "${LIST_FILE}"; exit 1; }
 fi
 
-# Starte einen Fortschrittsdialog
+# Berechne die Gesamtgröße der Dateien (für pv)
+TOTAL_SIZE=$(du -c ${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS} | tail -n 1 | awk '{print $1}')
+
+# Starte einen Fortschrittsdialog mit `pv` (pulsierend falls keine Details vorhanden)
 (
-    if [ "$NEED_REENCODE" -eq 1 ]; then
-        case "$EXTENSION" in
-            mp4|mov|mkv)
-                ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:v libx264 -preset fast -crf 23 -c:a aac "$OUTPUT_FILE"
-                ;;
-            mp3|aac|ogg)
-                ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a libmp3lame "$OUTPUT_FILE"
-                ;;
-            wav|flac)
-                ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c:a flac "$OUTPUT_FILE"
-                ;;
-        esac
-    else
-        ffmpeg -f concat -safe 0 -i "$LIST_FILE" -c copy "$OUTPUT_FILE"
-    fi
-    echo 100
+  if [ "${NEED_REENCODE}" -eq 1 ]; then
+    # Neukodierung (Videofälle werden neu kodiert, Audio passend kodiert)
+    case "${EXTENSION}" in
+      mp4|mov|mkv)
+        ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:v libx264 -preset fast -crf 23 -c:a aac "${OUTPUT_FILE}"
+        ;;
+      mp3|aac|ogg)
+        ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:a libmp3lame "${OUTPUT_FILE}"
+        ;;
+      wav|flac)
+        ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:a flac "${OUTPUT_FILE}"
+        ;;
+      *)
+        ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c copy "${OUTPUT_FILE}"
+        ;;
+    esac
+  else
+    # Direktes Kopieren
+    ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c copy "${OUTPUT_FILE}"
+  fi
+  echo 100
 ) | yad --progress --title="Zusammenfügen läuft" --percentage=0 --auto-close --center
 
-rm "$LIST_FILE"
+rm -f "${LIST_FILE}"
