@@ -52,4 +52,4 @@ nautilus -q
 
 **Lizenz**
 
-CC0 - Common Commercial
+Die Unlizenz 
