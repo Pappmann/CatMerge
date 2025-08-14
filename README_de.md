@@ -1,5 +1,7 @@
 # CatMerge – Media-Dateien einfach zusammenfügen
 
+[🇬🇧 English Version](README.md)
+
 **CatMerge** ist ein Nautilus-Skript, mit dem du Video- oder Audiodateien direkt im Dateimanager zusammenfügen kannst.  
 Perfekt für Aufnahmen von **Action-Cams oder Drohnen**, die oft in 4 GB-Segmente geteilt werden.
 
