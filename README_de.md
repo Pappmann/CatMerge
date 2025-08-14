@@ -34,9 +34,9 @@ sudo dnf install -y ffmpeg
 
 ## Skript installieren (gemeinsamer Schritt)
 
-Lege das Skript irgendwo in deinem Home ab und mache es ausführbar. Hier als `~/.local/bin`:
-
 ```bash
+git clone https://github.com/Pappmann/CatMerge.git
+cd CatMerge
 mkdir -p ~/.local/bin
 cp "Merge Media Files" ~/.local/bin/catmerge
 chmod +x ~/.local/bin/catmerge
