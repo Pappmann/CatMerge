@@ -57,4 +57,4 @@ nautilus -q
 
 ## License
 
-The Unlicense
+[The Unlicense](https://unlicense.org/)
