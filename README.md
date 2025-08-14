@@ -36,9 +36,12 @@ sudo dnf install -y ffmpeg
 Put the script somewhere in your home and make it executable. The following puts it into `~/.local/bin`:
 
 ```bash
-mkdir -p ~/.local/bin
-cp "Merge Media Files" ~/.local/bin/catmerge
-chmod +x ~/.local/bin/catmerge
+# Clone the repo
+git clone https://github.com/Pappmann/CatMerge.git
+cd CatMerge
+
+# Make script executable
+chmod +x "Merge Media Files"
 ```
 
 > The script is **universal**: it accepts Nautilus environment variables *or* `%F` arguments from other file managers.
