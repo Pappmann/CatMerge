@@ -25,10 +25,20 @@ sudo dnf install ffmpeg
 
 **Script installieren**
 ```bash
+# Repo klonen
+git clone https://github.com/Pappmann/CatMerge.git
+cd CatMerge
+
+# Skript ausführbar machen
+chmod +x "Merge Media Files"
+
+# In den Nautilus-Skriptordner kopieren
 mkdir -p ~/.local/share/nautilus/scripts
-cp catmerge.sh ~/.local/share/nautilus/scripts/"Merge Media Files"
-chmod +x ~/.local/share/nautilus/scripts/"Merge Media Files"
+cp "Merge Media Files" ~/.local/share/nautilus/scripts/
+
+# Nautilus neu starten (oder ab-/anmelden)
 nautilus -q
+
 ```
 **Nutzung**
 
