@@ -46,7 +46,7 @@ if ((${#missing[@]})); then
   fi
   msg=$'Fehlende Abhängigkeiten: '"${missing[*]}"$'\n\nUbuntu/Debian:  sudo apt install ffmpeg yad\nFedora:         sudo dnf install yad\n                (ffmpeg über RPM Fusion)\n'"${rpmfusion_hint}"
   if bin_exists yad; then
-    yad --title="Abhängigkeiten fehlen" --text="$msg" --button=gtk-ok:0 --center || true
+    yad --title="Abhängigkeiten fehlen" --text="$msg" --button="OK":0 --center || true
   elif bin_exists zenity; then
     zenity --info --title="Abhängigkeiten fehlen" --text="$msg" || true
   else
@@ -74,7 +74,7 @@ elif (($#>0)); then
   SELECTED_LINES="$(printf '%s\n' "${paths[@]}" | sed '/^$/d')"
 else
   if bin_exists yad; then
-    yad --image=dialog-error --text="Keine Dateien ausgewählt/übergeben." --button=gtk-ok:0 --center || true
+    yad --image=dialog-error --text="Keine Dateien ausgewählt/übergeben." --button="OK":0 --center || true
   else
     echo "Keine Dateien ausgewählt/übergeben." >&2
   fi
@@ -111,7 +111,7 @@ if bin_exists yad; then
   yad --title="Zusammenfügen bestätigen" \
       --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
       --list --column="Dateien" $(printf '%s ' ${SORTED_FILES@Q}) \
-      --button=gtk-cancel:1 --button=gtk-ok:0 || exit 1
+      --button="Abbrechen":1 --button="OK":0 || exit 1
 fi
 
 # -------------------- Speicherplatz prüfen --------------------
@@ -157,7 +157,7 @@ echo "NEED_REENCODE=$NEED_REENCODE"
 # Nachfrage bei Re-Encode
 if (( NEED_REENCODE == 1 )); then
   if bin_exists yad; then
-    yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button=gtk-no:1 --button=gtk-yes:0 || { rm -f "${LIST_FILE}"; exit 1; }
+    yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button="Nein":1 --button="Ja":0 || { rm -f "${LIST_FILE}"; exit 1; }
   fi
 fi
 
@@ -202,14 +202,14 @@ rm -f "$PROG_FIFO" "${LIST_FILE}"
 if (( FF_ERR != 0 )); then
   echo "ffmpeg exit code: $FF_ERR"
   if bin_exists yad; then
-    yad --image=dialog-error --text="Fehler beim Zusammenfügen (Code $FF_ERR).\nSiehe Log: $LOGFILE" --button=gtk-ok:0 --center || true
+    yad --image=dialog-error --text="Fehler beim Zusammenfügen (Code $FF_ERR).\nSiehe Log: $LOGFILE" --button="OK":0 --center || true
   else
     echo "Fehler beim Zusammenfügen (Code $FF_ERR). Siehe Log: $LOGFILE" >&2
   fi
   exit "$FF_ERR"
 else
   if bin_exists yad; then
-    yad --image=dialog-information --text="Erfolg: ${OUTPUT_FILE}" --button=gtk-ok:0 --center || true
+    yad --image=dialog-information --text="Erfolg: ${OUTPUT_FILE}" --button="OK":0 --center || true
   else
     echo "Erfolg: ${OUTPUT_FILE}"
   fi
