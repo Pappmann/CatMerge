@@ -6,7 +6,7 @@
 
 set -o errexit -o nounset -o pipefail
 
-LOGFILE="/tmp/nautilus_merge_ffmpeg.log"
+LOGFILE="/tmp/catmerge.log"
 exec >>"$LOGFILE" 2>&1
 echo "---- $(date) start ----"
 
