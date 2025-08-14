@@ -1,6 +1,6 @@
 # CatMerge – Easily Merge Media Files
 
-[🇩🇪 Deutsche Version](READMEde.md)
+[🇩🇪 Deutsche Version](README_de.md)
 
 **CatMerge** is a Nautilus script that allows you to merge video or audio files directly in your file manager.  
 Perfect for recordings from **action cams or drones**, which are often split into 4 GB segments.
