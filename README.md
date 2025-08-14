@@ -52,4 +52,4 @@ nautilus -q
 
 **Lizenz**
 
-GPL-3.0 – siehe LICENSE
+CC0 - Common Commercial
