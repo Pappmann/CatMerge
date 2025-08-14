@@ -9,27 +9,27 @@ Falls dies nicht möglich ist (z. B. bei variabler Bitrate), wirst du gefragt, o
 ---
 
 ## Installation
-
-1. **Voraussetzungen installieren**
+**Voraussetzungen installieren**
 
 Ubuntu/Debian:
 ```bash
 sudo apt install ffmpeg yad
-
+```
 Fedora:
-
+```bash
 sudo dnf install yad
 sudo dnf install \
   https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
 sudo dnf install ffmpeg
+```
 
-2.    **Script installieren**
-
+**Script installieren**
+```bash
 mkdir -p ~/.local/share/nautilus/scripts
 cp catmerge.sh ~/.local/share/nautilus/scripts/"Merge Media Files"
 chmod +x ~/.local/share/nautilus/scripts/"Merge Media Files"
 nautilus -q
-
+```
 **Nutzung**
 
     Im Dateimanager die zusammenzufügenden Dateien markieren.
