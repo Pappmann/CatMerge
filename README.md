@@ -2,11 +2,16 @@
 
 [🇩🇪 Deutsche Version](README_de.md)
 
+![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey.svg)  
+![Shell](https://img.shields.io/badge/Made%20with-Bash-4EAA25.svg?logo=gnu-bash&logoColor=white)  
+![ffmpeg](https://img.shields.io/badge/Uses-ffmpeg-blue.svg)  
+![yad](https://img.shields.io/badge/GUI-yad-purple.svg)
+
 **CatMerge** is a shell script that lets you merge video/audio files right from your file manager.  
-Ideal for **action cams or drones** that split recordings into 4‑GB segments.
+Ideal for **action cams or drones** that split recordings into 4-GB segments.
 
 The script tries to merge **losslessly** using `ffmpeg -c copy`.  
-If that isn’t possible (e.g. variable bitrate), it asks to **re‑encode**.
+If that isn’t possible (e.g. variable bitrate), it asks to **re-encode**.
 
 ---
 
@@ -48,8 +53,6 @@ chmod +x ~/.local/bin/catmerge
 ## Integrate with your file manager
 
 ### Nautilus (GNOME Files)
-Copy (or symlink) into the Nautilus *Scripts* folder, so it shows up in the context menu:
-
 ```bash
 mkdir -p ~/.local/share/nautilus/scripts
 ln -sf ~/.local/bin/catmerge ~/.local/share/nautilus/scripts/"Merge Media Files"
@@ -71,8 +74,6 @@ caja -q || true
 ```
 
 ### Dolphin (KDE)
-Create a **Service Menu** so CatMerge appears in the right‑click menu for video/audio:
-
 ```bash
 mkdir -p ~/.local/share/kio/servicemenus
 cat > ~/.local/share/kio/servicemenus/catmerge.desktop << 'EOF'
@@ -91,11 +92,7 @@ Exec=/bin/bash -lc '~/.local/bin/catmerge %F'
 EOF
 ```
 
-Restart Dolphin or log out/in if needed.
-
-### PCManFM‑Qt
-Create a file‑manager action:
-
+### PCManFM-Qt
 ```bash
 mkdir -p ~/.local/share/file-manager/actions
 cat > ~/.local/share/file-manager/actions/catmerge.desktop << 'EOF'
@@ -113,43 +110,36 @@ EOF
 ```
 
 ### Thunar (Xfce)
-Create a **Custom Action** via GUI (recommended):  
+Create a **Custom Action** via GUI:  
 - *Name:* `Merge Media Files (CatMerge)`  
 - *Command:* `/bin/bash -lc '~/.local/bin/catmerge %F'`  
 - *Appearance Conditions:* enable for **Audio Files** and **Video Files**.
-
-Or append to `~/.config/Thunar/uca.xml` (creates file if missing):
-```bash
-mkdir -p ~/.config/Thunar
-[[ -f ~/.config/Thunar/uca.xml ]] || { echo '<?xml version="1.0" encoding="UTF-8"?>' >~/.config/Thunar/uca.xml; echo '<actions>' >>~/.config/Thunar/uca.xml; echo '</actions>' >>~/.config/Thunar/uca.xml; }
-tmp="$(mktemp)"
-awk -v cmd="/bin/bash -lc '~/.local/bin/catmerge %F'" '
-  BEGIN{added=0}
-  /<\/actions>/ && !added {
-    print "<action>";
-    print "  <icon>media-tape</icon>";
-    print "  <name>Merge Media Files (CatMerge)</name>";
-    print "  <unique-id>catmerge-'"'"'"'"'"'""'"'"'"'"'"'</unique-id>";
-    print "  <command>" cmd "</command>";
-    print "  <description>Merge selected media segments</description>";
-    print "  <patterns>*</patterns>";
-    print "  <audio-files/>";
-    print "  <video-files/>";
-    print "</action>";
-    added=1
-  }
-  {print}
-' ~/.config/Thunar/uca.xml > "$tmp" && mv "$tmp" ~/.config/Thunar/uca.xml
-```
 
 ---
 
 ## Usage
 
+### From your File Manager
 1. Select the media segments (e.g., `…_001.MP4`, `…_002.MP4`, …).  
-2. Right‑click → **Scripts**/**Actions** → **Merge Media Files**.  
-3. If required, confirm **re‑encoding**.  
+2. Right-click → **Scripts**/**Actions** → **Merge Media Files**.  
+3. If required, confirm **re-encoding**.  
 4. Output is saved in the same folder (default name includes the source date).
+
+### From the Terminal
+You can also run CatMerge directly on the command line:
+
+```bash
+# Merge files in natural sort order
+catmerge file1.mp4 file2.mp4 file3.mp4
+
+# Or use shell globs (sorted automatically)
+catmerge *.MP4
+
+# Works with audio too
+catmerge track1.mp3 track2.mp3
+```
+
+Log output is written to `/tmp/catmerge.log`.
 
 ---
 
