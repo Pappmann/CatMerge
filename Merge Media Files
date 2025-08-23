@@ -105,14 +105,44 @@ echo "DIRNAME=$DIRNAME"
 echo "EXTENSION=$EXTENSION"
 echo "OUTPUT_FILE=$OUTPUT_FILE"
 
-# Übersicht/Bestätigung (falls GUI vorhanden)
-if bin_exists yad; then
-  # Übergibt sicher quotierte Einträge an YAD
+# --- Anzeige der Reihenfolge (vertikale Liste, nur Basename, dynamische Höhe) ---
+get_screen_height() {
+  if command -v xrandr >/dev/null 2>&1; then
+    # Beispielausgaben: "1920x1080" oder "connected primary 1920x1080+..."
+    xrandr | awk '/*/{if($1=="*"||$2=="*"){print $1; exit}}' 2>/dev/null | cut -d'x' -f2 || \
+    xrandr | awk '/current/{print $8; exit}' 2>/dev/null
+  elif command -v xdpyinfo >/dev/null 2>&1; then
+    xdpyinfo | awk '/dimensions:/{split($2,a,"x"); print a[2]; exit}' 2>/dev/null
+  else
+    echo 900
+  fi
+}
+
+SCREEN_H="$(get_screen_height)"
+: "${SCREEN_H:=500}"
+MAX_H="$(( SCREEN_H * 75 / 100 ))"
+MIN_H=300
+HEIGHT=$(( MAX_H > MIN_H ? MAX_H : MIN_H ))
+
+# Nur die Basisnamen vorbereiten (robust gegen Leerzeichen)
+TMP_NAMES="$(mktemp)"
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  printf '%s\n' "$(basename "$f")" >> "$TMP_NAMES"
+done <<< "$SORTED_FILES"
+
+# Liste per STDIN an yad geben: eine Zeile = eine Tabellenzeile
+if command -v yad >/dev/null 2>&1; then
   yad --title="Zusammenfügen bestätigen" \
       --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
-      --list --column="Dateien" $(printf '%s ' ${SORTED_FILES@Q}) \
-      --button="Abbrechen":1 --button="OK":0 || exit 1
+      --list --no-headers --no-click --scroll \
+      --column="Dateien" \
+      --width=500 --height="$HEIGHT" --center \
+      --button="Abbrechen":1 --button="OK":0 \
+      < "$TMP_NAMES" || { rm -f "$TMP_NAMES"; exit 1; }
 fi
+
+rm -f "$TMP_NAMES"
 
 # -------------------- Speicherplatz prüfen --------------------
 REQUIRED_SPACE=0
