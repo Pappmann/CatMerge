@@ -4,7 +4,7 @@
 
 [🇩🇪 Deutsche Version](README_de.md)
 
-![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey.svg) ![Shell](https://img.shields.io/badge/Made%20with-Bash-4EAA25.svg?logo=gnu-bash&logoColor=white) ![ffmpeg](https://img.shields.io/badge/Uses-ffmpeg-blue.svg) ![yad](https://img.shields.io/badge/GUI-yad-purple.svg)
+![License: CC0](https://img.shields.io/badge/License-CC0-lightgrey.svg) ![Shell](https://img.shields.io/badge/Made%20with-Bash-4EAA25.svg?logo=gnu-bash&logoColor=white) ![ffmpeg](https://img.shields.io/badge/Uses-ffmpeg-blue.svg) ![yad](https://img.shields.io/badge/GUI-yad-purple.svg) ![zenity](https://img.shields.io/badge/GUI-zenity-purple.svg)
 
 **CatMerge** is a shell script that lets you merge video/audio files right from your file manager.  
 Ideal for **action cams or drones** that split recordings into 4-GB segments.
@@ -17,17 +17,17 @@ If that isn’t possible (e.g. variable bitrate), it asks to **re-encode**.
 ## Requirements
 
 - `ffmpeg`
-- `yad` (for dialogs; script still prints to terminal if missing)
+- `yad` or `zenity` (for dialogs; script still prints to terminal if neither is available)
 
 Ubuntu/Debian:
 ```bash
 sudo apt update
-sudo apt install -y ffmpeg yad
+sudo apt install -y ffmpeg yad  # or: zenity
 ```
 
 Fedora:
 ```bash
-sudo dnf install -y yad
+sudo dnf install -y yad  # or: zenity
 # ffmpeg via RPM Fusion
 sudo dnf install -y   https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm
 sudo dnf install -y ffmpeg
