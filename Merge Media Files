@@ -268,6 +268,8 @@ else
   ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c copy "${OUTPUT_FILE}" || FF_ERR=$?
 fi
 
+set -e
+
 # Fortschritt schließen / Meldung
 {
   echo 100
