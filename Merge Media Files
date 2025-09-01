@@ -232,7 +232,9 @@ if (( NEED_REENCODE == 1 )); then
 fi
 
 # -------------------- Fortschritts-UI via FIFO (immer sichtbar) --------------------
-PROG_FIFO="$(mktemp -u)"
+PROG_FIFO="$(mktemp)"
+trap 'rm -f "$PROG_FIFO"' EXIT
+rm -f "$PROG_FIFO"
 mkfifo "$PROG_FIFO"
 case "$GUI_TOOL" in
   yad)
