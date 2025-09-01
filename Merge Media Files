@@ -13,6 +13,14 @@ echo "---- $(date) start ----"
 # -------------------- kleine Utils --------------------
 bin_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# Verfügbares GUI-Tool ermitteln (yad bevorzugt, sonst zenity)
+GUI_TOOL=""
+if bin_exists yad; then
+  GUI_TOOL=yad
+elif bin_exists zenity; then
+  GUI_TOOL=zenity
+fi
+
 # Prozent-Decoding (aus file:// URIs) – bevorzugt python3, Fallback: nur %20 -> Leerzeichen
 uridecode() {
   if bin_exists python3; then
@@ -33,7 +41,7 @@ PY
 }
 
 # -------------------- Abhängigkeiten prüfen --------------------
-need_cmds=("ffmpeg" "yad")
+need_cmds=("ffmpeg")
 missing=()
 for c in "${need_cmds[@]}"; do
   bin_exists "$c" || missing+=("$c")
@@ -44,14 +52,18 @@ if ((${#missing[@]})); then
   if printf '%s\n' "${missing[@]}" | grep -q '^ffmpeg$'; then
     rpmfusion_hint=$'\nHinweis (Fedora): ffmpeg ist i. d. R. in RPM Fusion.\n  sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm\n  sudo dnf install -y ffmpeg'
   fi
-  msg=$'Fehlende Abhängigkeiten: '"${missing[*]}"$'\n\nUbuntu/Debian:  sudo apt install ffmpeg yad\nFedora:         sudo dnf install yad\n                (ffmpeg über RPM Fusion)\n'"${rpmfusion_hint}"
-  if bin_exists yad; then
-    yad --title="Abhängigkeiten fehlen" --text="$msg" --button="OK":0 --center || true
-  elif bin_exists zenity; then
-    zenity --info --title="Abhängigkeiten fehlen" --text="$msg" || true
-  else
-    echo "$msg" >&2
-  fi
+  msg=$'Fehlende Abhängigkeiten: '"${missing[*]}"$'\n\nUbuntu/Debian:  sudo apt install ffmpeg\nFedora:         sudo dnf install ffmpeg\n                (ffmpeg über RPM Fusion)\n'"${rpmfusion_hint}"
+  case "$GUI_TOOL" in
+    yad)
+      yad --title="Abhängigkeiten fehlen" --text="$msg" --button="OK":0 --center || true
+      ;;
+    zenity)
+      zenity --info --title="Abhängigkeiten fehlen" --text="$msg" || true
+      ;;
+    *)
+      echo "$msg" >&2
+      ;;
+  esac
   exit 1
 fi
 
@@ -73,11 +85,17 @@ elif (($#>0)); then
   mapfile -t paths < <(printf '%s\n' "$@")
   SELECTED_LINES="$(printf '%s\n' "${paths[@]}" | sed '/^$/d')"
 else
-  if bin_exists yad; then
-    yad --image=dialog-error --text="Keine Dateien ausgewählt/übergeben." --button="OK":0 --center || true
-  else
-    echo "Keine Dateien ausgewählt/übergeben." >&2
-  fi
+  case "$GUI_TOOL" in
+    yad)
+      yad --image=dialog-error --text="Keine Dateien ausgewählt/übergeben." --button="OK":0 --center || true
+      ;;
+    zenity)
+      zenity --error --text="Keine Dateien ausgewählt/übergeben." || true
+      ;;
+    *)
+      echo "Keine Dateien ausgewählt/übergeben." >&2
+      ;;
+  esac
   exit 1
 fi
 
@@ -131,16 +149,26 @@ while IFS= read -r f; do
   printf '%s\n' "$(basename "$f")" >> "$TMP_NAMES"
 done <<< "$SORTED_FILES"
 
-# Liste per STDIN an yad geben: eine Zeile = eine Tabellenzeile
-if command -v yad >/dev/null 2>&1; then
-  yad --title="Zusammenfügen bestätigen" \
-      --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
-      --list --no-headers --no-click --scroll \
-      --column="Dateien" \
-      --width=500 --height="$HEIGHT" --center \
-      --button="Abbrechen":1 --button="OK":0 \
-      < "$TMP_NAMES" || { rm -f "$TMP_NAMES"; exit 1; }
-fi
+# Liste per STDIN an GUI geben: eine Zeile = eine Tabellenzeile
+case "$GUI_TOOL" in
+  yad)
+    yad --title="Zusammenfügen bestätigen" \
+        --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
+        --list --no-headers --no-click --scroll \
+        --column="Dateien" \
+        --width=500 --height="$HEIGHT" --center \
+        --button="Abbrechen":1 --button="OK":0 \
+        < "$TMP_NAMES" || { rm -f "$TMP_NAMES"; exit 1; }
+    ;;
+  zenity)
+    zenity --list --title="Zusammenfügen bestätigen" \
+           --text="Die folgenden Dateien werden in dieser Reihenfolge zusammengefügt:" \
+           --column="Dateien" --hide-header \
+           --width=500 --height="$HEIGHT" \
+           --cancel-label="Abbrechen" --ok-label="OK" \
+           < "$TMP_NAMES" || { rm -f "$TMP_NAMES"; exit 1; }
+    ;;
+esac
 
 rm -f "$TMP_NAMES"
 
@@ -155,11 +183,17 @@ AVAILABLE_SPACE=$(df -Pk -- "${DIRNAME}" | awk 'END{print $4}')
 echo "REQUIRED_SPACE=${REQUIRED_SPACE} KB, AVAILABLE_SPACE=${AVAILABLE_SPACE} KB"
 
 if (( AVAILABLE_SPACE < REQUIRED_SPACE )); then
-  if bin_exists yad; then
-    yad --image=dialog-error --button=gtk-ok:0 --center --text="Nicht genügend Speicherplatz verfügbar!" || true
-  else
-    echo "Nicht genügend Speicherplatz." >&2
-  fi
+  case "$GUI_TOOL" in
+    yad)
+      yad --image=dialog-error --button=gtk-ok:0 --center --text="Nicht genügend Speicherplatz verfügbar!" || true
+      ;;
+    zenity)
+      zenity --error --text="Nicht genügend Speicherplatz verfügbar!" || true
+      ;;
+    *)
+      echo "Nicht genügend Speicherplatz." >&2
+      ;;
+  esac
   exit 1
 fi
 
@@ -186,19 +220,31 @@ echo "NEED_REENCODE=$NEED_REENCODE"
 
 # Nachfrage bei Re-Encode
 if (( NEED_REENCODE == 1 )); then
-  if bin_exists yad; then
-    yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button="Nein":1 --button="Ja":0 || { rm -f "${LIST_FILE}"; exit 1; }
-  fi
+  case "$GUI_TOOL" in
+    yad)
+      yad --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --button="Nein":1 --button="Ja":0 || { rm -f "${LIST_FILE}"; exit 1; }
+      ;;
+    zenity)
+      zenity --question --title="Neukodierung erforderlich" --text="Die Dateien müssen neukodiert werden. Fortfahren?" --cancel-label="Nein" --ok-label="Ja" || { rm -f "${LIST_FILE}"; exit 1; }
+      ;;
+  esac
 fi
 
 # -------------------- Fortschritts-UI via FIFO (immer sichtbar) --------------------
 PROG_FIFO="$(mktemp -u)"
 mkfifo "$PROG_FIFO"
-if bin_exists yad; then
-  yad --progress --pulsate --no-cancel --auto-close --title="Zusammenfügen läuft" --text="# Bitte warten..." < "$PROG_FIFO" &
-  YAD_PID=$!
-  echo "YAD_PID=$YAD_PID"
-fi
+case "$GUI_TOOL" in
+  yad)
+    yad --progress --pulsate --no-cancel --auto-close --title="Zusammenfügen läuft" --text="# Bitte warten..." < "$PROG_FIFO" &
+    GUI_PID=$!
+    echo "GUI_PID=$GUI_PID"
+    ;;
+  zenity)
+    zenity --progress --pulsate --no-cancel --auto-close --title="Zusammenfügen läuft" --text="# Bitte warten..." < "$PROG_FIFO" &
+    GUI_PID=$!
+    echo "GUI_PID=$GUI_PID"
+    ;;
+esac
 
 set +e
 FF_ERR=0
@@ -231,18 +277,30 @@ rm -f "$PROG_FIFO" "${LIST_FILE}"
 
 if (( FF_ERR != 0 )); then
   echo "ffmpeg exit code: $FF_ERR"
-  if bin_exists yad; then
-    yad --image=dialog-error --text="Fehler beim Zusammenfügen (Code $FF_ERR).\nSiehe Log: $LOGFILE" --button="OK":0 --center || true
-  else
-    echo "Fehler beim Zusammenfügen (Code $FF_ERR). Siehe Log: $LOGFILE" >&2
-  fi
+  case "$GUI_TOOL" in
+    yad)
+      yad --image=dialog-error --text="Fehler beim Zusammenfügen (Code $FF_ERR).\nSiehe Log: $LOGFILE" --button="OK":0 --center || true
+      ;;
+    zenity)
+      zenity --error --text="Fehler beim Zusammenfügen (Code $FF_ERR).\nSiehe Log: $LOGFILE" || true
+      ;;
+    *)
+      echo "Fehler beim Zusammenfügen (Code $FF_ERR). Siehe Log: $LOGFILE" >&2
+      ;;
+  esac
   exit "$FF_ERR"
 else
-  if bin_exists yad; then
-    yad --image=dialog-information --text="Erfolg: ${OUTPUT_FILE}" --button="OK":0 --center || true
-  else
-    echo "Erfolg: ${OUTPUT_FILE}"
-  fi
+  case "$GUI_TOOL" in
+    yad)
+      yad --image=dialog-information --text="Erfolg: ${OUTPUT_FILE}" --button="OK":0 --center || true
+      ;;
+    zenity)
+      zenity --info --text="Erfolg: ${OUTPUT_FILE}" || true
+      ;;
+    *)
+      echo "Erfolg: ${OUTPUT_FILE}"
+      ;;
+  esac
 fi
 
 echo "---- $(date) end ----"
