@@ -1,5 +1,7 @@
 # CatMerge – Media-Dateien einfach zusammenfügen
 
+![](assets/og-image.png)
+
 [🇬🇧 English Version](README.md)
 
 ![Lizenz: CC0](https://img.shields.io/badge/Lizenz-CC0-lightgrey.svg) ![Shell](https://img.shields.io/badge/Geschrieben%20in-Bash-4EAA25.svg?logo=gnu-bash&logoColor=white) ![ffmpeg](https://img.shields.io/badge/Nutzt-ffmpeg-blue.svg) ![yad](https://img.shields.io/badge/GUI-yad-purple.svg) ![zenity](https://img.shields.io/badge/GUI-zenity-purple.svg)
