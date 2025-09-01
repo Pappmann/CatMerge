@@ -21,7 +21,7 @@ elif bin_exists zenity; then
   GUI_TOOL=zenity
 fi
 
-# Prozent-Decoding (aus file:// URIs) – bevorzugt python3, Fallback: nur %20 -> Leerzeichen
+# Prozent-Decoding (aus file:// URIs) – bevorzugt python3, Fallback: printf-basierte Dekodierung
 uridecode() {
   if bin_exists python3; then
     python3 - "$@" <<'PY'
@@ -32,10 +32,11 @@ for s in sys.argv[1:]:
     print(s)
 PY
   else
-    # Minimal-Fallback: nur 'file://' entfernen und %20 zu Leerzeichen machen
+    # Fallback: 'file://' entfernen und Prozent-Codes via printf dekodieren
     for s in "$@"; do
       s="${s#file://}"
-      printf '%s\n' "${s//%20/ }"
+      # Ersetze %HH durch \xHH und lasse printf sie dekodieren
+      printf '%b\n' "${s//%/\\x}"
     done
   fi
 }
