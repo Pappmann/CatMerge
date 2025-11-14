@@ -140,6 +140,13 @@ catmerge track1.mp3 track2.mp3
 
 Log output is written to `/tmp/catmerge.log`.
 
+### Optional timestamp sync
+
+By default, the merged file inherits the modification timestamp of the first
+source file. You can toggle this behavior by editing the
+`PRESERVE_SOURCE_TIMESTAMP` switch near the top of the `catmerge` script (or the
+`Merge Media Files` source file) and setting it to `true` or `false`.
+
 ---
 
 ## License
