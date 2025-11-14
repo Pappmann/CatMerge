@@ -140,6 +140,13 @@ catmerge spur1.mp3 spur2.mp3
 
 Das Log wird nach `/tmp/catmerge.log` geschrieben.
 
+### Optional: Zeitstempel angleichen
+
+Standardmäßig übernimmt die zusammengeführte Datei den Änderungszeitpunkt der
+ersten Quelldatei. Du kannst dieses Verhalten steuern, indem du den Schalter
+`PRESERVE_SOURCE_TIMESTAMP` am Anfang des `catmerge`-Skripts (bzw. der Datei
+`Merge Media Files`) auf `true` oder `false` setzt.
+
 ---
 
 ## Lizenz
