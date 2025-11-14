@@ -6,6 +6,9 @@
 
 set -o errexit -o nounset -o pipefail
 
+# Soll der Ausgabedatei-Zeitstempel an den der ersten Quelldatei angeglichen werden?
+PRESERVE_SOURCE_TIMESTAMP=true
+
 LOGFILE="/tmp/catmerge.log"
 exec >>"$LOGFILE" 2>&1
 echo "---- $(date) start ----"
@@ -115,6 +118,8 @@ EXTENSION="${EXTENSION_RAW,,}"   # in Kleinbuchstaben
 BASENAME="$(basename "${FIRST_FILE}" | sed -E 's/_[0-9]{3}\.[^.]+$//')"
 TIMESTAMP="$(stat -c %y "${FIRST_FILE}" | cut -d' ' -f1)"
 OUTPUT_FILE="${BASENAME}_${TIMESTAMP}.${EXTENSION}"
+
+echo "PRESERVE_SOURCE_TIMESTAMP=$PRESERVE_SOURCE_TIMESTAMP"
 
 # Sortierung (natürlich aufsteigend), nur existierende Dateien
 SORTED_FILES="$(printf '%s\n' "${FILES_RAW}" | sort -V)"
@@ -306,6 +311,10 @@ else
       echo "Erfolg: ${OUTPUT_FILE}"
       ;;
   esac
+fi
+
+if [[ "${PRESERVE_SOURCE_TIMESTAMP}" == "true" ]] && [[ -f "${FIRST_FILE}" ]] && [[ -f "${OUTPUT_FILE}" ]]; then
+  touch -r "${FIRST_FILE}" "${OUTPUT_FILE}" || echo "Warnung: Konnte Zeitstempel nicht übernehmen" >&2
 fi
 
 echo "---- $(date) end ----"
