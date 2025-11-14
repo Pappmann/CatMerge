@@ -16,6 +16,15 @@ echo "---- $(date) start ----"
 # -------------------- kleine Utils --------------------
 bin_exists() { command -v "$1" >/dev/null 2>&1; }
 
+print_ffmpeg_cmd() {
+  local -a args=("$@")
+  printf 'ffmpeg'
+  for arg in "${args[@]}"; do
+    printf ' %q' "$arg"
+  done
+  printf '\n'
+}
+
 # Verfügbares GUI-Tool ermitteln (yad bevorzugt, sonst zenity)
 GUI_TOOL=""
 if bin_exists yad; then
@@ -212,12 +221,12 @@ while IFS= read -r line; do
   printf "file '%s'\n" "$line" >> "${LIST_FILE}"
 done <<< "${SORTED_FILES}"
 
-echo "LIST_FILE at ${LIST_FILE}:"
-cat "${LIST_FILE}"
+# Gemeinsame ffmpeg-Argumente vorbereiten (concat-Demuxer)
+FFMPEG_INPUT_ARGS=(-hide_banner -loglevel error -f concat -safe 0 -i "${LIST_FILE}")
 
 # -------------------- Copy-Test (kurz) --------------------
 NEED_REENCODE=0
-if ffmpeg -hide_banner -v error -f concat -safe 0 -i "${LIST_FILE}" -c copy -t 0.1 -f null - </dev/null 2>/dev/null; then
+if ffmpeg "${FFMPEG_INPUT_ARGS[@]}" -c copy -t 0.1 -f null - </dev/null 2>/dev/null; then
   NEED_REENCODE=0
 else
   NEED_REENCODE=1
@@ -259,20 +268,25 @@ FF_ERR=0
 if (( NEED_REENCODE == 1 )); then
   case "${EXTENSION}" in
     mp4|mov|mkv)
-      ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:v libx264 -preset fast -crf 23 -c:a aac "${OUTPUT_FILE}" || FF_ERR=$?
+      print_ffmpeg_cmd -y "${FFMPEG_INPUT_ARGS[@]}" -c:v libx264 -preset fast -crf 23 -c:a aac "${OUTPUT_FILE}"
+      ffmpeg -y "${FFMPEG_INPUT_ARGS[@]}" -c:v libx264 -preset fast -crf 23 -c:a aac "${OUTPUT_FILE}" || FF_ERR=$?
       ;;
     mp3|aac|ogg)
-      ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:a libmp3lame "${OUTPUT_FILE}" || FF_ERR=$?
+      print_ffmpeg_cmd -y "${FFMPEG_INPUT_ARGS[@]}" -c:a libmp3lame "${OUTPUT_FILE}"
+      ffmpeg -y "${FFMPEG_INPUT_ARGS[@]}" -c:a libmp3lame "${OUTPUT_FILE}" || FF_ERR=$?
       ;;
     wav|flac)
-      ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c:a flac "${OUTPUT_FILE}" || FF_ERR=$?
+      print_ffmpeg_cmd -y "${FFMPEG_INPUT_ARGS[@]}" -c:a flac "${OUTPUT_FILE}"
+      ffmpeg -y "${FFMPEG_INPUT_ARGS[@]}" -c:a flac "${OUTPUT_FILE}" || FF_ERR=$?
       ;;
     *)
-      ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c copy "${OUTPUT_FILE}" || FF_ERR=$?
+      print_ffmpeg_cmd -y "${FFMPEG_INPUT_ARGS[@]}" -c copy "${OUTPUT_FILE}"
+      ffmpeg -y "${FFMPEG_INPUT_ARGS[@]}" -c copy "${OUTPUT_FILE}" || FF_ERR=$?
       ;;
   esac
 else
-  ffmpeg -y -f concat -safe 0 -i "${LIST_FILE}" -c copy "${OUTPUT_FILE}" || FF_ERR=$?
+  print_ffmpeg_cmd -y "${FFMPEG_INPUT_ARGS[@]}" -c copy "${OUTPUT_FILE}"
+  ffmpeg -y "${FFMPEG_INPUT_ARGS[@]}" -c copy "${OUTPUT_FILE}" || FF_ERR=$?
 fi
 
 set -e
